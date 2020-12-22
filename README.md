@@ -85,7 +85,9 @@ Then, point your browser to http://localhost:8000/evil.php and have fun!
 
 - Using the -s option to save the password in a session cookie can be very pratical, as you would need to type it only once for each session. The problem is that it could be used by someone to recover your password or even help identifying you.
 
-- A good method to hide the web shell into a server would be to put the malicious code inside another file (preferably one that would not be edited very frequently) right in the middle of some long HTML code.
+- Never leave a webshell on a server for too long. A suspicious file containing seemingly encrypted random noise is sure to raise a lot of suspicion. After gaining access to a shell on the server, use it to get high (root) privileges and with that set up a better method of maintaining access (such as a backdoor or even a rootkit).
+
+- If you need to leave the webshell on the server for a long time, always make sure that the file you are accessing is the same one you left there. A smart administrator could tamper with the webshell so that it saves the credentials used to access it, to log all your actions or even warn it at the time of access. To avoid this, always keep a hash image of the webshell with you and once logged in, make sure it was not tampered with by comparing the hash of the file on the server to the one generated at the time of file creation. If they do not match, you may have been compromised. Burn your PC and run for your life... (but first, take a copy of the tampered file so that you can find out exactly what the administrator did and what he may have accomplished with it)
 
 ## Meta
 
