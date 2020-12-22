@@ -77,4 +77,5 @@
     fwrite($out_file, $output_code);
     fclose($out_file);
     echo "[+] File was saved as '" . $options['o'] . "'\n";
+    echo "[+] File SHA1 sum is: " . sha1_file($options['o']) . "\n";
 ?>
